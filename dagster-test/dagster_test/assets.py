@@ -3,8 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-from dagster import asset, Definitions, Output, AssetMaterialization
-from dagster import job
+from dagster import asset, Definitions, Output, AssetMaterialization, job
 
 # Step 1: Data Extraction
 @asset(description="Extracts data from a CSV source file.")
@@ -25,15 +24,15 @@ def transform_data(extract_data):
     extract_data['Population (millions)'] = extract_data['Population'] / 1e6  # Convert to millions
     
     transformed_df = extract_data[['Country', 'Year', 'GDP (trillions USD)', 'Population (millions)',
-                                   'Life Expectancy', 'Unemployment Rate (%)', 'CO2 Emissions (metric tons per capita)',
-                                   'Access to Electricity (%)']]
+                                     'Life Expectancy', 'Unemployment Rate (%)', 'CO2 Emissions (metric tons per capita)',
+                                     'Access to Electricity (%)']]
     print("Data transformation complete.")
     yield Output(transformed_df)
 
 # Step 3: Load/Save Transformed Data
 @asset(description="Saves the transformed data to a new CSV file.")
 def load_data(transform_data):
-    destination = './load_data/processed_data.csv'
+    destination = './load_data/transformed_data.csv'
     print("Loading data to destination CSV...")
     os.makedirs(os.path.dirname(destination), exist_ok=True)
     transform_data.to_csv(destination, index=False)
@@ -77,9 +76,16 @@ def plot_co2_emissions(transform_data):
     plt.show()
     print("Plot generation complete.")
 
-
 # Define all assets and dependencies
 all_assets = [extract_data, transform_data, load_data, plot_co2_emissions]
 
 # Set up Definitions for the Dagster pipeline
 defs = Definitions(assets=all_assets)
+
+# Main guard to run the pipeline
+if __name__ == "__main__":
+    # Execute the pipeline steps
+    extracted_data = extract_data()
+    transformed_data = transform_data(extracted_data)
+    load_data(transformed_data)
+    plot_co2_emissions(transformed_data)
